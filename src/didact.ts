@@ -41,7 +41,7 @@ function createTextElement(text: string) {
             nodeValue: text,
             children: [],
         },
-    };
+    } as VDom;
 }
 // ----------------------------
 interface Fiber {
@@ -53,33 +53,52 @@ interface Fiber {
     sibling?: Fiber
 }
 
-function createDom(fiber): DOM {
+function createDom(fiber: Fiber): DOM {
     const dom =
         fiber.type == "TEXT_ELEMENT"
             ? document.createTextNode("")
             : document.createElement(fiber.type) as Element
 
-    const isProperty = key => key !== "children"
+    const isProperty = (key: string) => key !== "children"
     Object.keys(fiber.props)
         .filter(isProperty)
         .forEach(name => {
+            // @ts-ignore
             dom[name] = fiber.props[name]
         })
     return dom
 }
 
-let nextUnitOfWork: Fiber = null
+let nextUnitOfWork: Fiber | undefined | null = null
+let wipRoot: Fiber | null = null
 
 function render(element: VDom, container: DOM) {
-    nextUnitOfWork = {
+
+    wipRoot = {
         dom: container,
         props: {
             children: [element],
         },
     }
+    nextUnitOfWork = wipRoot
 }
 
-// ----------------------------
+function commitRoot() {
+    commitWork(wipRoot.child)
+    wipRoot = null
+}
+
+function commitWork(fiber: Fiber) {
+    if (!fiber) {
+        return
+    }
+    const domParent = fiber.parent.dom
+    domParent.appendChild(fiber.dom)
+    commitWork(fiber.child)
+    commitWork(fiber.sibling)
+}
+
+
 function workLoop(deadline: Deadline) {
     let shouldYield = false
     while (nextUnitOfWork && !shouldYield) {
@@ -88,21 +107,26 @@ function workLoop(deadline: Deadline) {
         )
         shouldYield = deadline.timeRemaining() < 1
     }
+
+    if (!nextUnitOfWork && wipRoot) {
+        commitRoot()
+    }
+
     requestIdleCallback(workLoop)
 }
 
 requestIdleCallback(workLoop)
 
 
-function performUnitOfWork(fiber: Fiber): Fiber {
+function performUnitOfWork(fiber: Fiber): Fiber | undefined {
     // 第一步，创建dom
     if (!fiber.dom) {
         fiber.dom = createDom(fiber)
     }
-
-    if (fiber.parent) {
-        fiber.parent.dom.appendChild(fiber.dom)
-    }
+    // 去掉，最后一次性做
+    // if (fiber.parent) {
+    //     fiber.parent.dom.appendChild(fiber.dom)
+    // }
     // 第二步，children遍历
     const elements = fiber.props.children as VDom[];
     let index = 0
@@ -125,7 +149,6 @@ function performUnitOfWork(fiber: Fiber): Fiber {
 
         prevSibling = newFiber
         index++
-
     }
     // 第三步
     if (fiber.child) {
