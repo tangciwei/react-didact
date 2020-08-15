@@ -5,7 +5,7 @@
     "noImplicitAny": false,
     "module": "es6",
     "target": "esnext",
-    "jsx": "Didact",
+    "jsx": "react",
     "allowJs": true,
   },
   "include": [
