@@ -1,14 +1,9 @@
-import { Didact } from "./didact";
-Didact
-// https://segmentfault.com/a/1190000023616070
-function component() {
-  const element = document.createElement("div");
-
-  element.innerHTML = ["Hello", "webpack"].join("-");
-
-  return <div>12</div>;
-}
-interface a {
-
-}
-document.body.appendChild(component());
+import { Didact } from "./Didact";
+const element = (
+  <div style="background: salmon">
+    <h1>Hello World</h1>
+    <h2 style="text-align:right">from Didact</h2>
+  </div>
+);
+const container = document.getElementById("root");
+Didact.render(element, container);
