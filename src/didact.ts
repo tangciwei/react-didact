@@ -1,3 +1,12 @@
+declare var requestIdleCallback: {
+    (callback: {
+        (deadline: Deadline): void;
+    }): void;
+}
+interface Deadline {
+    timeRemaining(): number
+}
+
 type ElementType = string | "TEXT_ELEMENT";
 interface Props {
     [key: string]: any;
@@ -9,6 +18,7 @@ interface VDom {
     props: Props;
 }
 
+// -------------
 
 function createElement(type: ElementType, props: Props, ...children: Props['children']) {
     return {
@@ -46,6 +56,27 @@ function render(element: VDom, container: Text | HTMLElement) {
     element.props.children.forEach((child: VDom) => render(child, dom));
     container.appendChild(dom);
 }
+
+
+let nextUnitOfWork = null
+function workLoop(deadline: Deadline) {
+    let shouldYield = false
+    while (nextUnitOfWork && !shouldYield) {
+        nextUnitOfWork = performUnitOfWork(
+            nextUnitOfWork
+        )
+        shouldYield = deadline.timeRemaining() < 1
+    }
+    requestIdleCallback(workLoop)
+}
+
+requestIdleCallback(workLoop)
+
+function performUnitOfWork(nextUnitOfWork) {
+    // TODO
+}
+
+
 
 export const Didact = {
     createElement,
