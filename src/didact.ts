@@ -67,7 +67,7 @@ function createDom(fiber: Fiber): DOM {
     const dom =
         fiber.type == "TEXT_ELEMENT"
             ? document.createTextNode("")
-            : document.createElement(fiber.type) as Element
+            : document.createElement(fiber.type as string) as Element
 
     updateDom(dom, {} as Props, fiber.props)
     return dom
