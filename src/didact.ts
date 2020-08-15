@@ -29,7 +29,16 @@ interface Fiber {
     sibling?: Fiber
     alternate?: Fiber
     effectTag?: 'UPDATE' | 'PLACEMENT' | 'DELETION'
+    hooks?: Hook[]
 }
+interface Hook {
+    state: any // todo
+    queue: Action[]
+}
+interface Action {
+    (state: any): any;
+}
+
 // ----------------------------
 
 function createElement(type: ElementType, props: Props, ...children: Props['children']): VDom {
@@ -73,6 +82,7 @@ let wipRoot: Fiber | null = null
 let currentRoot: Fiber | null = null
 let deletions: Fiber[] = []
 
+
 function workLoop(deadline: Deadline) {
     let shouldYield = false
     while (nextUnitOfWork && !shouldYield) {
@@ -109,10 +119,53 @@ function performUnitOfWork(fiber: Fiber): Fiber | undefined {
         nextFiber = nextFiber.parent
     }
 }
+// WIP= Work in Progress 
+let wipFiber: Fiber = null
+let hookIndex: number = null
+
 function updateFunctionComponent(fiber: Fiber) {
+    wipFiber = fiber
+    hookIndex = 0
+    wipFiber.hooks = []
+
+
     const children = [(fiber.type as Function)(fiber.props)]
     reconcileChildren(fiber, children)
 }
+
+function useState<T>(initial: T) {
+    const oldHook =
+        wipFiber.alternate &&
+        wipFiber.alternate.hooks &&
+        wipFiber.alternate.hooks[hookIndex]
+
+    const hook = {
+        state: oldHook ? oldHook.state : initial,
+        queue: [],
+    } as Hook;
+
+    const actions: Action[] = oldHook ? oldHook.queue : []
+
+    actions.forEach(action => {
+        hook.state = action(hook.state)
+    })
+
+    const setState = (action: Action) => {
+        hook.queue.push(action)
+        wipRoot = {
+            dom: currentRoot.dom,
+            props: currentRoot.props,
+            alternate: currentRoot,
+        }
+        nextUnitOfWork = wipRoot
+        deletions = []
+    }
+
+    wipFiber.hooks.push(hook)
+    hookIndex++
+    return [hook.state, setState]
+}
+
 
 function updateHostComponent(fiber: Fiber) {
     if (!fiber.dom) {
@@ -307,4 +360,5 @@ function render(element: VDom, container: DOM) {
 export const Didact = {
     createElement,
     render,
+    useState
 };
