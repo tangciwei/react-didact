@@ -7,7 +7,8 @@ interface Deadline {
     timeRemaining(): number
 }
 
-type ElementType = string | "TEXT_ELEMENT";
+type ElementType = string | "TEXT_ELEMENT" | Function;
+
 interface Props {
     [key: string]: any;
     children: (VDom | string)[];
@@ -89,12 +90,13 @@ function workLoop(deadline: Deadline) {
 }
 
 function performUnitOfWork(fiber: Fiber): Fiber | undefined {
-    if (!fiber.dom) {
-        fiber.dom = createDom(fiber)
+    const isFunctionComponent =
+        fiber.type instanceof Function
+    if (isFunctionComponent) {
+        updateFunctionComponent(fiber)
+    } else {
+        updateHostComponent(fiber)
     }
-
-    const elements = fiber.props.children
-    reconcileChildren(fiber, elements as VDom[])
 
     if (fiber.child) {
         return fiber.child
@@ -107,6 +109,18 @@ function performUnitOfWork(fiber: Fiber): Fiber | undefined {
         nextFiber = nextFiber.parent
     }
 }
+function updateFunctionComponent(fiber: Fiber) {
+    const children = [(fiber.type as Function)(fiber.props)]
+    reconcileChildren(fiber, children)
+}
+
+function updateHostComponent(fiber: Fiber) {
+    if (!fiber.dom) {
+        fiber.dom = createDom(fiber)
+    }
+    reconcileChildren(fiber, fiber.props.children as VDom[])
+}
+
 
 function reconcileChildren(wipFiber: Fiber, elements: VDom[]) {
 
@@ -180,7 +194,12 @@ function commitWork(fiber: Fiber) {
     if (!fiber) {
         return
     }
-    const domParent = fiber.parent.dom
+    // const domParent = fiber.parent.dom
+    let domParentFiber = fiber.parent
+    while (!domParentFiber.dom) {
+        domParentFiber = domParentFiber.parent
+    }
+    const domParent = domParentFiber.dom
 
     if (
         fiber.effectTag === "PLACEMENT" &&
@@ -189,7 +208,7 @@ function commitWork(fiber: Fiber) {
         domParent.appendChild(fiber.dom)
     }
     else if (fiber.effectTag === "DELETION") {
-        domParent.removeChild(fiber.dom)
+        commitDeletion(fiber, domParent)
     }
     else if (
         fiber.effectTag === "UPDATE" &&
@@ -206,7 +225,13 @@ function commitWork(fiber: Fiber) {
     commitWork(fiber.sibling)
 
 }
-
+function commitDeletion(fiber: Fiber, domParent: DOM) {
+    if (fiber.dom) {
+        domParent.removeChild(fiber.dom)
+    } else {
+        commitDeletion(fiber.child, domParent)
+    }
+}
 
 const isNew = (prev: Props, next: Props) => (key: string) =>
     prev[key] !== next[key]
