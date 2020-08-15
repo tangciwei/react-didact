@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "sourceMap": true,
+    "outDir": "./dist/",
+    "noImplicitAny": false,
+    "module": "es6",
+    "target": "esnext",
+    "jsx": "Didact",
+    "allowJs": true,
+  },
+  "include": [
+    "src"
+  ]
+}
